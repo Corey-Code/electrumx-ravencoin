@@ -1,12 +1,12 @@
 [Unit]
-Description=Electrumx
+Description=Frencoin Electrumx
 After=network.target network-online.target
 Wants=network-online.target
 
 [Service]
 EnvironmentFile=/etc/electrumx.conf
-ExecStart=/home/electrumx/electrumx/electrumx_server
-User=electrumx
+ExecStart=/root/electrumx-ravencoin/electrumx/electrumx_server
+User=root
 LimitNOFILE=8192
 TimeoutStopSec=30min
 
