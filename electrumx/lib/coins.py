@@ -24,11 +24,11 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-'''Module providing coin abstraction.
+"""Module providing coin abstraction.
 
 Anything coin-specific should go in this file and be subclassed where
 necessary for appropriate handling.
-'''
+"""
 
 import re
 from collections import namedtuple
@@ -51,17 +51,17 @@ Block = namedtuple("Block", "raw header transactions")
 
 
 class CoinError(Exception):
-    '''Exception raised for coin-related errors.'''
+    """Exception raised for coin-related errors."""
 
 
 class Coin:
-    '''Base class of coin hierarchy.'''
+    """Base class of coin hierarchy."""
 
     SHORTNAME = "BSV"
     NET = "mainnet"
     REORG_LIMIT = 200
     # Not sure if these are coin-specific
-    RPC_URL_REGEX = re.compile('.+@(\\[[0-9a-fA-F:]+\\]|[^:]+)(:[0-9]+)?')
+    RPC_URL_REGEX = re.compile(".+@(\\[[0-9a-fA-F:]+\\]|[^:]+)(:[0-9]+)?")
     VALUE_PER_COIN = 100000000
     SESSIONCLS = ElectrumX
     BASIC_HEADER_SIZE = 80
@@ -71,14 +71,13 @@ class Coin:
     P2PKH_VERBYTE = bytes.fromhex("00")
     P2SH_VERBYTES = [bytes.fromhex("05")]
     RPC_PORT = 8332
-    GENESIS_HASH = ('000000000019d6689c085ae165831e93'
-                    '4ff763ae46a2a6c172b3f1b60a8ce26f')
+    GENESIS_HASH = "000000000019d6689c085ae165831e93" "4ff763ae46a2a6c172b3f1b60a8ce26f"
     GENESIS_ACTIVATION = 100_000_000
     # Peer discovery
-    PEER_DEFAULT_PORTS = {'t': '50001', 's': '50002'}
+    PEER_DEFAULT_PORTS = {"t": "50001", "s": "50002"}
     PEERS = []
 
-    ESTIMATEFEE_MODES = (None, 'CONSERVATIVE', 'ECONOMICAL')
+    ESTIMATEFEE_MODES = (None, "CONSERVATIVE", "ECONOMICAL")
 
     def __new__(cls):
         assert cls.KAWPOW_ACTIVATION_TIME > 0
@@ -104,58 +103,55 @@ class Coin:
 
     @classmethod
     def static_header_offset(cls, height):
-        '''Given a header height return its offset in the headers file.
+        """Given a header height return its offset in the headers file.
 
         If header sizes change at some point, this is the only code
-        that needs updating.'''
+        that needs updating."""
         return height * cls.BASIC_HEADER_SIZE
 
     @classmethod
     def static_header_len(cls, height):
-        '''Given a header height return its length.'''
-        return (cls.static_header_offset(height + 1)
-                - cls.static_header_offset(height))
+        """Given a header height return its length."""
+        return cls.static_header_offset(height + 1) - cls.static_header_offset(height)
 
     @classmethod
     def lookup_coin_class(cls, name, net):
-        '''Return a coin class given name and network.
+        """Return a coin class given name and network.
 
-        Raise an exception if unrecognised.'''
-        req_attrs = ['CHAIN_SIZE', 'CHAIN_SIZE_HEIGHT', 'AVG_BLOCK_SIZE']
+        Raise an exception if unrecognised."""
+        req_attrs = ["CHAIN_SIZE", "CHAIN_SIZE_HEIGHT", "AVG_BLOCK_SIZE"]
         for coin in util.subclasses(Coin):
-            if (coin.NAME.lower() == name.lower() and
-                    coin.NET.lower() == net.lower()):
+            if coin.NAME.lower() == name.lower() and coin.NET.lower() == net.lower():
                 coin_req_attrs = req_attrs.copy()
-                missing = [attr for attr in coin_req_attrs
-                           if not hasattr(coin, attr)]
+                missing = [attr for attr in coin_req_attrs if not hasattr(coin, attr)]
                 if missing:
-                    raise CoinError('coin {} missing {} attributes'
-                                    .format(name, missing))
+                    raise CoinError(
+                        "coin {} missing {} attributes".format(name, missing)
+                    )
                 return coin
-        raise CoinError('unknown coin {} and network {} combination'
-                        .format(name, net))
+        raise CoinError("unknown coin {} and network {} combination".format(name, net))
 
     @classmethod
     def sanitize_url(cls, url):
         # Remove surrounding ws and trailing /s
-        url = url.strip().rstrip('/')
+        url = url.strip().rstrip("/")
         match = cls.RPC_URL_REGEX.match(url)
         if not match:
             raise CoinError('invalid daemon URL: "{}"'.format(url))
         if match.groups()[1] is None:
-            url += ':{:d}'.format(cls.RPC_PORT)
-        if not url.startswith('http://') and not url.startswith('https://'):
-            url = 'http://' + url
-        return url + '/'
+            url += ":{:d}".format(cls.RPC_PORT)
+        if not url.startswith("http://") and not url.startswith("https://"):
+            url = "http://" + url
+        return url + "/"
 
     @classmethod
     def hashX_from_script(cls, script):
-        '''Returns a hashX from a script.'''
+        """Returns a hashX from a script."""
         return sha256(script).digest()[:HASHX_LEN]
 
     @classmethod
     def address_to_hashX(cls, address):
-        '''Return a hashX given a coin address.'''
+        """Return a hashX given a coin address."""
         return cls.hashX_from_script(cls.pay_to_address_script(address))
 
     @classmethod
@@ -168,10 +164,10 @@ class Coin:
 
     @classmethod
     def pay_to_address_script(cls, address):
-        '''Return a pubkey script that pays to a pubkey hash.
+        """Return a pubkey script that pays to a pubkey hash.
 
         Pass the address (either P2PKH or P2SH) in base58 form.
-        '''
+        """
         raw = Base58.decode_check(address)
 
         # Require version byte(s) plus hash160.
@@ -185,80 +181,85 @@ class Coin:
         if verbyte in cls.P2SH_VERBYTES:
             return ScriptPubKey.P2SH_script(hash160)
 
-        raise CoinError('invalid address: {}'.format(address))
+        raise CoinError("invalid address: {}".format(address))
 
     @classmethod
     def header_hash(cls, header):
-        '''Given a header return hash'''
+        """Given a header return hash"""
         return double_sha256(header)
 
     @classmethod
     def header_prevhash(cls, header):
-        '''Given a header return previous hash'''
+        """Given a header return previous hash"""
         return header[4:36]
 
     @classmethod
     def block_header(cls, block, height):
-        '''Returns the block header given a block and its height.'''
-        return block[:cls.static_header_len(height)]
+        """Returns the block header given a block and its height."""
+        return block[: cls.static_header_len(height)]
 
     @classmethod
     def block(cls, raw_block, height):
-        '''Return a Block namedtuple given a raw block and its height.'''
+        """Return a Block namedtuple given a raw block and its height."""
         header = cls.block_header(raw_block, height)
         txs = cls.DESERIALIZER(raw_block, start=len(header)).read_tx_block()
         return Block(raw_block, header, txs)
 
     @classmethod
     def decimal_value(cls, value):
-        '''Return the number of standard coin units as a Decimal given a
+        """Return the number of standard coin units as a Decimal given a
         quantity of smallest units.
 
         For example 1 BSV is returned for 100 million satoshis.
-        '''
+        """
         return Decimal(value) / cls.VALUE_PER_COIN
 
 
 class Ravencoin(Coin):
-    NAME = "Frencoin"
-    SHORTNAME = "FREN"
+    NAME = "PepePow"
+    SHORTNAME = "PEPEW"
     NET = "mainnet"
     XPUB_VERBYTES = bytes.fromhex("0488B21E")
     XPRV_VERBYTES = bytes.fromhex("0488ADE4")
-    P2PKH_VERBYTE = bytes.fromhex("23")
-    P2SH_VERBYTES = [bytes.fromhex("5F")]
-    GENESIS_HASH = ('00000022bcd010da6b8d3c2c0e80229e'
-                    'a1f5c0bb4960678d3c26bab2c9b23b9a')
+    P2PKH_VERBYTE = bytes.fromhex("37")
+    P2SH_VERBYTES = [bytes.fromhex("10")]
+    WIF_BYTE = bytes.fromhex("CC")
+    GENESIS_HASH = "00000a308cc3b469703a3bc1aa55bc25" "1a71c9287d7b413242592c0ab0a31f13"
     DEFAULT_MAX_SEND = 10_000_000
-    X16RV2_ACTIVATION_TIME = 0   # algo switch to x16rv2 at this timestamp
-    KAWPOW_ACTIVATION_TIME = 1683401242  # kawpow algo activation time
-    KAWPOW_ACTIVATION_HEIGHT = 1
-    KAWPOW_HEADER_SIZE = 120
-    
+    X16RV2_ACTIVATION_TIME = 0  # algo switch to x16rv2 at this timestamp
+    KAWPOW_ACTIVATION_TIME = 0  # kawpow algo activation time
+    KAWPOW_ACTIVATION_HEIGHT = 0
+    KAWPOW_HEADER_SIZE = 0
+
     CHAIN_SIZE = 20_000_000
     CHAIN_SIZE_HEIGHT = 621_416
     AVG_BLOCK_SIZE = 10_000
-    
-    RPC_PORT = 4206
+
+    RPC_PORT = 8834
     REORG_LIMIT = 60
     PEERS = [
-        '45.74.23.127 t s',
-        '104.250.175.195 t s',
-        '120.226.39.214 t s',
-        '82.65.198.148 t s',
+        "101.37.28.146 t s",
+        "109.205.212.243 t s",
+        "121.36.243.160 t s",
+        "82.65.198.148 t s",
+        "141.147.71.107 t s",
+        "141.98.90.157 t s",
+        "5.188.238.193 t s",
     ]
 
     @classmethod
     def static_header_offset(cls, height):
-        '''Given a header height return its offset in the headers file.'''
+        """Given a header height return its offset in the headers file."""
         if cls.KAWPOW_ACTIVATION_HEIGHT < 0 or height < cls.KAWPOW_ACTIVATION_HEIGHT:
             return height * cls.BASIC_HEADER_SIZE
         else:  # RVN block header size increased with kawpow fork
-            return (cls.KAWPOW_ACTIVATION_HEIGHT * cls.BASIC_HEADER_SIZE) + ((height - cls.KAWPOW_ACTIVATION_HEIGHT) * cls.KAWPOW_HEADER_SIZE)
+            return (cls.KAWPOW_ACTIVATION_HEIGHT * cls.BASIC_HEADER_SIZE) + (
+                (height - cls.KAWPOW_ACTIVATION_HEIGHT) * cls.KAWPOW_HEADER_SIZE
+            )
 
     @classmethod
     def header_hash(cls, header):
-        '''Given a header return the hash.'''
+        """Given a header return the hash."""
         timestamp = util.unpack_le_uint32_from(header, 68)[0]
         if timestamp >= cls.KAWPOW_ACTIVATION_TIME:
             nNonce64 = util.unpack_le_uint64_from(header, 80)[0]  # uint64_t
@@ -270,6 +271,7 @@ class Ravencoin(Coin):
         else:
             return x16r_hash.getPoWHash(header)
 
+
 class RavencoinTestnet(Ravencoin):
     NET = "testnet"
     XPUB_VERBYTES = bytes.fromhex("043587CF")
@@ -277,12 +279,11 @@ class RavencoinTestnet(Ravencoin):
     P2PKH_VERBYTE = bytes.fromhex("6F")
     P2SH_VERBYTES = [bytes.fromhex("C4")]
     WIF_BYTE = bytes.fromhex("EF")
-    GENESIS_HASH = ('000000ecfc5e6324a079542221d00e10'
-                    '362bdc894d56500c414060eea8a3ad5a')
+    GENESIS_HASH = "000000ecfc5e6324a079542221d00e10" "362bdc894d56500c414060eea8a3ad5a"
     X16RV2_ACTIVATION_TIME = 1567533600
     KAWPOW_ACTIVATION_HEIGHT = 231544
     KAWPOW_ACTIVATION_TIME = 1585159200
-    
+
     CHAIN_SIZE = 567_294_883
     CHAIN_SIZE_HEIGHT = 1_048_377
     AVG_BLOCK_SIZE = 400
